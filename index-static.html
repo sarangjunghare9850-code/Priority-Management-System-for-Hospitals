@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hospital Triage Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <div class="logo">🩺</div>
+      <div class="title">Hospital Triage Management</div>
+    </div>
+    <div class="header-actions">
+      <button id="toggleThemeBtn" class="btn ghost">Toggle Theme</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card intake-card">
+      <h2>Patient Intake</h2>
+      <form id="intakeForm" autocomplete="off">
+        <div class="grid two">
+          <div class="field">
+            <label for="name">Full Name</label>
+            <input id="name" name="name" type="text" placeholder="e.g., Alex Johnson" required>
+          </div>
+          <div class="field">
+            <label for="age">Age</label>
+            <input id="age" name="age" type="number" min="0" max="120" placeholder="e.g., 42" required>
+          </div>
+        </div>
+        <div class="grid two">
+          <div class="field">
+            <label for="severity">Condition Severity</label>
+            <select id="severity" name="severity" required>
+              <option value="" disabled selected>Select severity</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="symptoms">Primary Complaint</label>
+            <input id="symptoms" name="symptoms" type="text" placeholder="e.g., Chest pain, shortness of breath" required>
+          </div>
+        </div>
+        <div class="grid three">
+          <div class="field">
+            <label for="heartRate">Heart Rate (bpm)</label>
+            <input id="heartRate" name="heartRate" type="number" min="20" max="220" placeholder="e.g., 95">
+          </div>
+          <div class="field">
+            <label for="systolic">Systolic BP (mmHg)</label>
+            <input id="systolic" name="systolic" type="number" min="60" max="250" placeholder="e.g., 120">
+          </div>
+          <div class="field">
+            <label for="oxygen">SpO₂ (%)</label>
+            <input id="oxygen" name="oxygen" type="number" min="50" max="100" placeholder="e.g., 98">
+          </div>
+        </div>
+
+        <div class="grid two">
+          <div class="field">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes" rows="2" placeholder="Optional notes"></textarea>
+          </div>
+          <div class="field actions align-end">
+            <button type="reset" class="btn ghost">Clear</button>
+            <button type="submit" class="btn primary">Add Patient</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section class="dashboard">
+      <div class="card queues">
+        <div class="queues-header">
+          <h2>Queues</h2>
+          <div class="queue-actions">
+            <input type="search" id="searchBox" placeholder="Search patients...">
+            <button id="exportCsvBtn" class="btn ghost">Export CSV</button>
+            <button id="clearAllBtn" class="btn danger ghost">Clear All</button>
+          </div>
+        </div>
+        <div class="queue-grid">
+          <div class="queue-col" data-level="critical">
+            <div class="queue-title critical">Critical</div>
+            <ul id="queue-critical" class="queue-list"></ul>
+          </div>
+          <div class="queue-col" data-level="high">
+            <div class="queue-title high">High</div>
+            <ul id="queue-high" class="queue-list"></ul>
+          </div>
+          <div class="queue-col" data-level="medium">
+            <div class="queue-title medium">Medium</div>
+            <ul id="queue-medium" class="queue-list"></ul>
+          </div>
+          <div class="queue-col" data-level="low">
+            <div class="queue-title low">Low</div>
+            <ul id="queue-low" class="queue-list"></ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <div class="card stats">
+          <h2>Stats</h2>
+          <div class="stats-grid">
+            <div class="stat"><div class="label">Total</div><div id="stat-total" class="value">0</div></div>
+            <div class="stat critical"><div class="label">Critical</div><div id="stat-critical" class="value">0</div></div>
+            <div class="stat high"><div class="label">High</div><div id="stat-high" class="value">0</div></div>
+            <div class="stat medium"><div class="label">Medium</div><div id="stat-medium" class="value">0</div></div>
+            <div class="stat low"><div class="label">Low</div><div id="stat-low" class="value">0</div></div>
+          </div>
+        </div>
+
+        <div class="card rooms">
+          <div class="rooms-header">
+            <h2>Doctor Rooms</h2>
+            <button id="assignNextBtn" class="btn primary">Assign Next Patient</button>
+          </div>
+          <div id="roomsList" class="rooms-list">
+            <!-- dynamic -->
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <div>Built for triage prioritization. Data stored locally.</div>
+  </footer>
+
+  <script>
+    (function() {
+      const STORAGE_KEY = 'triage.patients.v1';
+      const ROOMS_KEY = 'triage.rooms.v1';
+      const THEME_KEY = 'triage.theme.v1';
+
+      const severityOrder = ['critical', 'high', 'medium', 'low'];
+      const defaultRooms = [
+        { id: 'room-1', name: 'Room 1', assignedPatientId: null },
+        { id: 'room-2', name: 'Room 2', assignedPatientId: null },
+        { id: 'room-3', name: 'Room 3', assignedPatientId: null }
+      ];
+
+      const $ = (sel) => document.querySelector(sel);
+      const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+      function loadState() {
+        try {
+          const patients = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+          const rooms = JSON.parse(localStorage.getItem(ROOMS_KEY) || 'null') || defaultRooms;
+          return { patients, rooms };
+        } catch (e) {
+          return { patients: [], rooms: defaultRooms };
+        }
+      }
+
+      function saveState(state) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.patients));
+        localStorage.setItem(ROOMS_KEY, JSON.stringify(state.rooms));
+      }
+
+      function uid() {
+        return 'p_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
+      }
+
+      function computeAutoSeverity(vitals) {
+        const { heartRate, systolic, oxygen } = vitals;
+        let score = 0;
+        if (oxygen !== null && oxygen <= 90) score += 3;
+        if (systolic !== null && systolic < 90) score += 3;
+        if (heartRate !== null && (heartRate > 130 || heartRate < 40)) score += 2;
+        if (oxygen !== null && oxygen <= 85) score += 1;
+
+        if (score >= 5) return 'critical';
+        if (score >= 3) return 'high';
+        if (score >= 2) return 'medium';
+        return null;
+      }
+
+      function formatTime(ts) {
+        const d = new Date(ts);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+
+      function render(state) {
+        // Clear queues
+        severityOrder.forEach(level => {
+          const ul = $('#queue-' + level);
+          if (ul) ul.innerHTML = '';
+        });
+
+        // Filter and sort patients
+        const query = $('#searchBox').value.trim().toLowerCase();
+        const sorted = [...state.patients]
+          .filter(p => !p.consultingRoomId)
+          .sort((a, b) => {
+            const sdiff = severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity);
+            if (sdiff !== 0) return sdiff;
+            return a.arrivedAt - b.arrivedAt;
+          });
+
+        // Render patient cards
+        for (const p of sorted) {
+          if (query && !(`${p.name} ${p.symptoms}`.toLowerCase().includes(query))) continue;
+          
+          const li = document.createElement('li');
+          li.className = 'patient-card';
+          li.dataset.id = p.id;
+          li.innerHTML = `
+            <div class="patient-main">
+              <div class="patient-name">${p.name} <span class="chip ${p.severity}">${p.severity}</span></div>
+              <div class="patient-meta">Age ${p.age} • ${p.symptoms} • Arrived ${formatTime(p.arrivedAt)}</div>
+            </div>
+            <div class="patient-actions">
+              <button class="btn ghost" data-action="promote">Promote</button>
+              <button class="btn ghost" data-action="demote">Demote</button>
+              <button class="btn danger" data-action="remove">Remove</button>
+            </div>`;
+          
+          const ul = $('#queue-' + p.severity);
+          ul && ul.appendChild(li);
+        }
+
+        // Update stats
+        $('#stat-total').textContent = state.patients.filter(p => !p.consultingRoomId).length;
+        severityOrder.forEach(level => {
+          $('#stat-' + level).textContent = state.patients.filter(p => !p.consultingRoomId && p.severity === level).length;
+        });
+
+        // Render rooms
+        const roomsList = $('#roomsList');
+        roomsList.innerHTML = '';
+        for (const room of state.rooms) {
+          const patient = state.patients.find(p => p.id === room.assignedPatientId) || null;
+          const div = document.createElement('div');
+          div.className = 'room';
+          div.dataset.id = room.id;
+          div.innerHTML = `
+            <div>
+              <div class="room-name">${room.name}</div>
+              <div class="room-meta">${patient ? `${patient.name} • ${patient.severity} • since ${formatTime(patient.assignedAt)}` : 'Idle'}</div>
+            </div>
+            <div>
+              <button class="btn ghost" data-action="rename">Rename</button>
+              ${patient ? '<button class="btn primary" data-action="complete">Complete</button>' : ''}
+            </div>`;
+          roomsList.appendChild(div);
+        }
+      }
+
+      function assignNext(state) {
+        const idleRoom = state.rooms.find(r => !r.assignedPatientId);
+        if (!idleRoom) return false;
+
+        let candidate = null;
+        for (const level of severityOrder) {
+          const inLevel = state.patients
+            .filter(p => !p.consultingRoomId && p.severity === level)
+            .sort((a, b) => a.arrivedAt - b.arrivedAt);
+          if (inLevel.length) {
+            candidate = inLevel[0];
+            break;
+          }
+        }
+
+        if (!candidate) return false;
+
+        candidate.consultingRoomId = idleRoom.id;
+        candidate.assignedAt = Date.now();
+        idleRoom.assignedPatientId = candidate.id;
+        return true;
+      }
+
+      function exportCsv(state) {
+        const rows = [['ID','Name','Age','Severity','Symptoms','ArrivedAt','AssignedRoom','AssignedAt']];
+        for (const p of state.patients) {
+          rows.push([
+            p.id,
+            p.name,
+            String(p.age),
+            p.severity,
+            p.symptoms,
+            new Date(p.arrivedAt).toISOString(),
+            p.consultingRoomId || '',
+            p.assignedAt ? new Date(p.assignedAt).toISOString() : ''
+          ]);
+        }
+        const csv = rows.map(r => r.map(v => '"' + String(v).replaceAll('"','""') + '"').join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'patients.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function initTheme() {
+        const saved = localStorage.getItem(THEME_KEY);
+        if (saved === 'light') document.body.classList.add('theme-light');
+      }
+
+      function toggleTheme() {
+        document.body.classList.toggle('theme-light');
+        localStorage.setItem(THEME_KEY, document.body.classList.contains('theme-light') ? 'light' : 'dark');
+      }
+
+      function main() {
+        initTheme();
+        let state = loadState();
+
+        // Ensure at least three rooms
+        if (!state.rooms || state.rooms.length === 0) state.rooms = defaultRooms;
+
+        render(state);
+
+        $('#toggleThemeBtn').addEventListener('click', toggleTheme);
+
+        $('#intakeForm').addEventListener('submit', (e) => {
+          e.preventDefault();
+          const form = e.currentTarget;
+          const name = form.name.value.trim();
+          const age = parseInt(form.age.value, 10);
+          const severity = form.severity.value;
+          const symptoms = form.symptoms.value.trim();
+          const heartRate = form.heartRate.value ? parseInt(form.heartRate.value, 10) : null;
+          const systolic = form.systolic.value ? parseInt(form.systolic.value, 10) : null;
+          const oxygen = form.oxygen.value ? parseInt(form.oxygen.value, 10) : null;
+          const notes = form.notes.value.trim();
+
+          if (!name || Number.isNaN(age) || !severity || !symptoms) return;
+
+          const auto = computeAutoSeverity({ heartRate, systolic, oxygen });
+          const finalSeverity = auto || severity;
+
+          const patient = {
+            id: uid(),
+            name,
+            age,
+            severity: finalSeverity,
+            symptoms,
+            notes,
+            vitals: { heartRate, systolic, oxygen },
+            arrivedAt: Date.now(),
+            consultingRoomId: null,
+            assignedAt: null
+          };
+
+          state.patients.push(patient);
+          saveState(state);
+          render(state);
+          form.reset();
+        });
+
+        $('#searchBox').addEventListener('input', () => render(state));
+        $('#exportCsvBtn').addEventListener('click', () => exportCsv(state));
+        $('#clearAllBtn').addEventListener('click', () => {
+          if (!confirm('Clear all patients and rooms?')) return;
+          state = { patients: [], rooms: defaultRooms.map(r => ({...r})) };
+          saveState(state);
+          render(state);
+        });
+
+        $('.queues').addEventListener('click', (e) => {
+          const btn = e.target.closest('button');
+          if (!btn) return;
+          const action = btn.dataset.action;
+          const card = btn.closest('.patient-card');
+          const id = card?.dataset.id;
+          if (!id) return;
+          const idx = state.patients.findIndex(p => p.id === id);
+          if (idx === -1) return;
+          const p = state.patients[idx];
+          if (action === 'remove') {
+            state.patients.splice(idx, 1);
+          } else if (action === 'promote') {
+            const i = severityOrder.indexOf(p.severity);
+            if (i > 0) p.severity = severityOrder[i - 1];
+          } else if (action === 'demote') {
+            const i = severityOrder.indexOf(p.severity);
+            if (i < severityOrder.length - 1) p.severity = severityOrder[i + 1];
+          }
+          saveState(state);
+          render(state);
+        });
+
+        $('#assignNextBtn').addEventListener('click', () => {
+          const assigned = assignNext(state);
+          if (assigned) { saveState(state); render(state); }
+          else alert('No idle room or no waiting patients.');
+        });
+
+        $('#roomsList').addEventListener('click', (e) => {
+          const btn = e.target.closest('button');
+          if (!btn) return;
+          const action = btn.dataset.action;
+          const roomEl = btn.closest('.room');
+          const roomId = roomEl?.dataset.id;
+          const room = state.rooms.find(r => r.id === roomId);
+          if (!room) return;
+          if (action === 'rename') {
+            const name = prompt('Room name', room.name);
+            if (name && name.trim()) room.name = name.trim();
+          } else if (action === 'complete') {
+            const p = state.patients.find(p => p.id === room.assignedPatientId);
+            if (p) {
+              state.patients = state.patients.filter(x => x.id !== p.id);
+            }
+            room.assignedPatientId = null;
+          }
+          saveState(state);
+          render(state);
+        });
+      }
+
+      window.addEventListener('DOMContentLoaded', main);
+    })();
+  </script>
+</body>
+</html>
+
+

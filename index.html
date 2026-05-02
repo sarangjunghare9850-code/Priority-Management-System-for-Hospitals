@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Priority Management System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="brand">
+      <div class="logo">🩺</div>
+      <div class="title">Priority Management System</div>
+    </div>
+    <div class="header-actions">
+      <button id="toggleThemeBtn" class="btn ghost">Toggle Theme</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card intake-card">
+      <h2>Patient Intake</h2>
+      <form id="intakeForm" autocomplete="off">
+        <div class="grid two">
+          <div class="field">
+            <label for="name">Full Name</label>
+            <input id="name" name="name" type="text" placeholder="e.g., Alex Johnson" required>
+          </div>
+          <div class="field">
+            <label for="age">Age</label>
+            <input id="age" name="age" type="number" min="0" max="120" placeholder="e.g., 42" required>
+          </div>
+        </div>
+        <div class="grid two">
+          <div class="field">
+            <label for="severity">Condition Severity</label>
+            <select id="severity" name="severity" required>
+              <option value="" disabled selected>Select severity</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="symptoms">Primary Complaint</label>
+            <input id="symptoms" name="symptoms" type="text" placeholder="e.g., Chest pain, shortness of breath" required>
+          </div>
+        </div>
+        <div class="grid three">
+          <div class="field">
+            <label for="heartRate">Heart Rate (bpm)</label>
+            <input id="heartRate" name="heartRate" type="number" min="20" max="220" placeholder="e.g., 95">
+          </div>
+          <div class="field">
+            <label for="systolic">Systolic BP (mmHg)</label>
+            <input id="systolic" name="systolic" type="number" min="60" max="250" placeholder="e.g., 120">
+          </div>
+          <div class="field">
+            <label for="oxygen">SpO₂ (%)</label>
+            <input id="oxygen" name="oxygen" type="number" min="50" max="100" placeholder="e.g., 98">
+          </div>
+        </div>
+
+        <div class="grid two">
+          <div class="field">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes" rows="2" placeholder="Optional notes"></textarea>
+          </div>
+          <div class="field actions align-end">
+            <button type="reset" class="btn ghost">Clear</button>
+            <button type="submit" class="btn primary">Add Patient</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section class="dashboard">
+      <div class="card queues">
+        <div class="queues-header">
+          <h2>Queues</h2>
+          <div class="queue-actions">
+            <input type="search" id="searchBox" placeholder="Search patients...">
+            <button id="exportCsvBtn" class="btn ghost">Export CSV</button>
+            <button id="clearAllBtn" class="btn danger ghost">Clear All</button>
+          </div>
+        </div>
+        <div class="queue-grid">
+          <div class="queue-col" data-level="critical">
+            <div class="queue-title critical">Critical</div>
+            <ul id="queue-critical" class="queue-list"></ul>
+          </div>
+          <div class="queue-col" data-level="high">
+            <div class="queue-title high">High</div>
+            <ul id="queue-high" class="queue-list"></ul>
+          </div>
+          <div class="queue-col" data-level="medium">
+            <div class="queue-title medium">Medium</div>
+            <ul id="queue-medium" class="queue-list"></ul>
+          </div>
+          <div class="queue-col" data-level="low">
+            <div class="queue-title low">Low</div>
+            <ul id="queue-low" class="queue-list"></ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <div class="card stats">
+          <h2>Stats</h2>
+          <div class="stats-grid">
+            <div class="stat"><div class="label">Total</div><div id="stat-total" class="value">0</div></div>
+            <div class="stat critical"><div class="label">Critical</div><div id="stat-critical" class="value">0</div></div>
+            <div class="stat high"><div class="label">High</div><div id="stat-high" class="value">0</div></div>
+            <div class="stat medium"><div class="label">Medium</div><div id="stat-medium" class="value">0</div></div>
+            <div class="stat low"><div class="label">Low</div><div id="stat-low" class="value">0</div></div>
+          </div>
+        </div>
+
+        <div class="card rooms">
+          <div class="rooms-header">
+            <h2>Doctor Rooms</h2>
+            <button id="assignNextBtn" class="btn primary">Assign Next Patient</button>
+          </div>
+          <div id="roomsList" class="rooms-list">
+            <!-- dynamic -->
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <div>Built for triage prioritization. Data stored locally.</div>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
+
+
+
